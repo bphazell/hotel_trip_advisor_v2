@@ -27,6 +27,14 @@ services:
             - "5433:5433"
         depends_on:
             - pg
+    hotel_app:
+        container_name: hoteltripadvisor
+        image: hoteltripadvisor:latest
+        restart: always
+        ports:
+            - "5002:5002"
+        depends_on:
+            - pg
 networks:
     default:
         name: nunet
