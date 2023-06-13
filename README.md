@@ -2,7 +2,7 @@
 
 ## About The Project
 
-This is a back-end application designed to emulates the functionality of Trip Advisor. For instance there are API's for creating an account, making a hotel reservation, creating a review for a hotel, liking a review that another user made, etc. 
+This is a back-end application designed to emulate the functionality of Trip Advisor. For instance there are API's for creating an account, making a hotel reservation, creating a review for a hotel, liking a review that another user made, etc. Add data is stored in a Posgres SQL Database
 
 ## Prerequisites
 - Python 3
