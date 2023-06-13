@@ -149,5 +149,7 @@ How to run this application locally:
 * Return all members that liked a Review
 
 * GET `/reviews/{review_id}/liking_members`
-    * requirements with example:
+
+
+
 
