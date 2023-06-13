@@ -2,7 +2,7 @@
 
 ## About The Project
 
-This is a back-end application designed to emulates the functionality of Trip Advisor. For instance there are API for creating an account, making a hotel reservation, creating a review for a hotel, liking a review that another user made, etc. 
+This is a back-end application designed to emulates the functionality of Trip Advisor. For instance there are API's for creating an account, making a hotel reservation, creating a review for a hotel, liking a review that another user made, etc. 
 
 ## Prerequisites
 - Python 3
@@ -10,6 +10,8 @@ This is a back-end application designed to emulates the functionality of Trip Ad
 
 
 ## Getting Started
+
+How to run this application locally:
 
 1. Clone the Repo
     - `git clone https://github.com/bphazell/hotel_trip_advisor`
@@ -32,5 +34,120 @@ This is a back-end application designed to emulates the functionality of Trip Ad
    -  `"docker exec hoteltripadvisor flask db upgrade"`
 
 
+## API Documentation
 
+* Base URL: http://localhost:5000/
+
+### Guest
+* Add New User 
+    * POST `/guests`
+    * requirements with example:
+	{"first_name": "Sarah",
+        "last_name": "Filgert",
+	"date_of_birth": "1988-02-23",
+        "email": "sfs@gmail.com",
+        "phone": "222-111-2323"}
+    
+* Show all Guests 
+    * GET `/guests`
+
+* Show specific guest
+    * GET `/guests/{guest_id}`
+
+### Members
+* Add New Member Account
+    * POST `/members`
+    * requirements with example:
+	{"guest_id": 3,
+	"username": "user3",
+	"password": "temppass123"}
+    
+* Show all Member Accounts
+    * GET `/members`
+
+* Show specific Member Account
+    * GET `/members/{member_id}`
+
+* Update Member credentials 
+    * PUT `/members/{member_id}`
+    * requirements with example:
+	{
+	"username": "member_4",
+	"password": "tempass123"
+}
+
+* Like a Review
+    * POST `/members/{member_id}/review_likes`
+    * requirements with example:
+	{
+	"username": "member_4",
+	"password": "tempass123"
+}
+
+* Unlike a Review
+    * DELETE `/members/{member_id}/review_likes/{review_id}`
+
+
+* Returned all reviews a member liked
+    *  GET `/members/{member_id}/liked_reviews`
+
+### Hotels
+* Add New Hotel  
+    * POST `/hotels`
+    * requirements with example:
+	{"name": "Downtown Marriot",
+        "address" : "3434 5th, San Diego, CA",
+				"star_rating" : 4.6,
+       "number_of_rooms": 35}
+    
+* Show all Hotels 
+    * GET `/hotels`
+
+* Show specific hotel
+    * GET `/hotels/{hotel_id}`
+
+
+### Reservations
+
+* Add New Reservation  
+    * POST `/reservations`
+    * requirements with example:
+	{
+	"room_number": "12",
+	"hotel_id": 6,
+	"arrival_date": "2022-11-3",
+	"departure_date": "2022-11-5",
+	"number_of_nights": 2,
+	"guest_id": 2
+}
+    
+* Show all Reservations 
+    * GET `/reservations`
+
+* Show specific reservation
+    * GET `/reservations/{reservation_id}`
+
+* Cancel reservation
+    * DELETE `/reservations/{reservation_id}`
+
+
+### Reviews
+
+* Add New Review for Hotel
+    * POST `/reviews`
+    * requirements with example:
+	{
+    "content" : "The hotel was awesome",
+    "rating" : 5,
+    "hotel_id" : 6,
+    "member_id" : 5}
+    
+* Show all Reviews
+    * GET `/reviews`
+
+
+* Return all members that liked a Review
+
+* GET `/reviews/{review_id}/liking_members`
+    * requirements with example:
 
