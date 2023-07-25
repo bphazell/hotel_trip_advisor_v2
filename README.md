@@ -4,6 +4,8 @@
 
 This is a back-end application designed to emulate the functionality of Trip Advisor. For instance there are API's for creating an account, making a hotel reservation, creating a review for a hotel, liking a review that another user made, etc. The application is written in Flask and datastorage is a posgres SQL Database. 
 
+To view the cloud hosted version of this app, switch to the 'azure_cloud_hosted' branch. 
+
 ## Prerequisites
 - Python 3
 - Docker
