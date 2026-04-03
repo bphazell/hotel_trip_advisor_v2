@@ -8,6 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED=1
+ENV FLASK_APP=wsgi.py
 
 # Install pip requirements
 COPY requirements.txt .
