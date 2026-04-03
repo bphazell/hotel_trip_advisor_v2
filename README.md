@@ -1,157 +1,162 @@
-# hotel_trip_advisor
+# Hotel Trip Advisor
 
 ## About The Project
 
-This is a back-end application designed to emulate the functionality of Trip Advisor. For instance there are API's for creating an account, making a hotel reservation, creating a review for a hotel, liking a review that another user made, etc. The application is written in Flask and datastorage is a posgres SQL Database. 
+A back-end REST API that emulates core TripAdvisor functionality: guest accounts, member accounts, hotel listings, reservations, reviews, and review likes. Built with **Flask** and **PostgreSQL**, containerised with **Docker Compose**.
 
-To view the cloud hosted version of this app, switch to the 'azure_cloud_hosted' branch. 
+To view the cloud-hosted version, switch to the `azure_cloud_hosted` branch.
 
 ## Prerequisites
-- Python 3
-- Docker
 
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or another Docker engine)
 
-## Getting Started
+## Quick Start
 
-How to run this application locally:
+```bash
+./scripts/launch-local.sh
+```
 
-1. Clone the Repo
-    - `git clone https://github.com/bphazell/hotel_trip_advisor`
-2. Install requirements
-   - `pip install -r requirements .txt`
-   - optional: set up a virtual enviroment
-3. Build the Docker Containers from docker compose file
-   - `docker compose up -d`
-   - Note: this will build 3 containers: 1. Trip advisor app 2. Postgres database 3. PG Admin
-4. Navigate  to PG Admin http://localhost:5433/browser/#
-     - click ‘Add Server’ 
-     - Name = pg_container
-     - Username = postgres
-    - Password = ‘empty’
-5. Create Database
-     - `docker exec -i pg_container psql -c 'CREATE DATABASE hotel_trip_advisor;'`
-6. Navigate to flask/trip_advisor folder
-7. Create database tables
-   - run `docker exec hoteltripadvisor flask db migrate` then 
-   -  `"docker exec hoteltripadvisor flask db upgrade"`
+This single script will:
 
+1. Build the Flask app image
+2. Start Postgres and the Flask API (Gunicorn on port **5002**)
+3. Create the `hotel_trip_advisor` database if it doesn't exist
+4. Generate and apply Alembic migrations
+5. Health-check the API
+
+To also start **PgAdmin** (port 5433):
+
+```bash
+PROFILES="--profile tools" ./scripts/launch-local.sh
+```
+
+### Manual steps (if you prefer)
+
+```bash
+docker compose up -d --build
+docker exec pg_container psql -U postgres -c 'CREATE DATABASE hotel_trip_advisor;'
+docker exec hoteltripadvisor flask db migrate -m "initial"
+docker exec hoteltripadvisor flask db upgrade
+```
+
+### Stopping
+
+```bash
+docker compose down
+```
 
 ## API Documentation
 
-* Base URL: http://localhost:5000/
+**Base URL:** `http://localhost:5002/`
 
-### Guest
-* Add New User 
-    * POST `/guests`
-    * requirements with example:
-	{"first_name": "Sarah",
-        "last_name": "Filgert",
-	"date_of_birth": "1988-02-23",
-        "email": "sfs@gmail.com",
-        "phone": "222-111-2323"}
-    
-* Show all Guests 
-    * GET `/guests`
+### Health
 
-* Show specific guest
-    * GET `/guests/{guest_id}`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Returns `{"status": "ok"}` |
+
+### Guests
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/guests` | List all guests |
+| GET | `/guests/{guest_id}` | Show a specific guest |
+| POST | `/guests` | Create a new guest |
+
+**POST body example:**
+
+```json
+{
+    "first_name": "Sarah",
+    "last_name": "Filgert",
+    "date_of_birth": "1988-02-23",
+    "email": "sfs@gmail.com",
+    "phone": "222-111-2323"
+}
+```
 
 ### Members
-* Add New Member Account
-    * POST `/members`
-    * requirements with example:
-	{"guest_id": 3,
-	"username": "user3",
-	"password": "temppass123"}
-    
-* Show all Member Accounts
-    * GET `/members`
 
-* Show specific Member Account
-    * GET `/members/{member_id}`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/members` | List all members |
+| GET | `/members/{member_id}` | Show a specific member |
+| POST | `/members` | Create a new member account |
+| PUT | `/members/{member_id}` | Update member credentials |
+| POST | `/members/{member_id}/review_likes` | Like a review |
+| DELETE | `/members/{member_id}/review_likes/{review_id}` | Unlike a review |
+| GET | `/members/{member_id}/liked_reviews` | List reviews a member liked |
 
-* Update Member credentials 
-    * PUT `/members/{member_id}`
-    * requirements with example:
-	{
-	"username": "member_4",
-	"password": "tempass123"
+**POST body example:**
+
+```json
+{
+    "guest_id": 3,
+    "username": "user3",
+    "password": "temppass123"
 }
-
-* Like a Review
-    * POST `/members/{member_id}/review_likes`
-    * requirements with example:
-	{
-	"username": "member_4",
-	"password": "tempass123"
-}
-
-* Unlike a Review
-    * DELETE `/members/{member_id}/review_likes/{review_id}`
-
-
-* Returned all reviews a member liked
-    *  GET `/members/{member_id}/liked_reviews`
+```
 
 ### Hotels
-* Add New Hotel  
-    * POST `/hotels`
-    * requirements with example:
-	{"name": "Downtown Marriot",
-        "address" : "3434 5th, San Diego, CA",
-				"star_rating" : 4.6,
-       "number_of_rooms": 35}
-    
-* Show all Hotels 
-    * GET `/hotels`
 
-* Show specific hotel
-    * GET `/hotels/{hotel_id}`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/hotels` | List all hotels |
+| GET | `/hotels/{hotel_id}` | Show a specific hotel |
+| POST | `/hotels` | Create a new hotel |
 
+**POST body example:**
+
+```json
+{
+    "name": "Downtown Marriot",
+    "address": "3434 5th, San Diego, CA",
+    "star_rating": 4.6,
+    "number_of_rooms": 35
+}
+```
 
 ### Reservations
 
-* Add New Reservation  
-    * POST `/reservations`
-    * requirements with example:
-	{
-	"room_number": "12",
-	"hotel_id": 6,
-	"arrival_date": "2022-11-3",
-	"departure_date": "2022-11-5",
-	"number_of_nights": 2,
-	"guest_id": 2
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/reservations` | List all reservations |
+| GET | `/reservations/{reservation_id}` | Show a specific reservation |
+| POST | `/reservations` | Create a new reservation |
+| DELETE | `/reservations/{reservation_id}` | Cancel a reservation |
+
+**POST body example:**
+
+```json
+{
+    "room_number": 12,
+    "hotel_id": 6,
+    "arrival_date": "2022-11-03",
+    "departure_date": "2022-11-05",
+    "number_of_nights": 2,
+    "guest_id": 2
 }
-    
-* Show all Reservations 
-    * GET `/reservations`
-
-* Show specific reservation
-    * GET `/reservations/{reservation_id}`
-
-* Cancel reservation
-    * DELETE `/reservations/{reservation_id}`
-
+```
 
 ### Reviews
 
-* Add New Review for Hotel
-    * POST `/reviews`
-    * requirements with example:
-	{
-    "content" : "The hotel was awesome",
-    "rating" : 5,
-    "hotel_id" : 6,
-    "member_id" : 5}
-    
-* Show all Reviews
-    * GET `/reviews`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/reviews` | List all reviews |
+| POST | `/reviews` | Create a new review |
+| GET | `/reviews/{review_id}/liking_members` | List members who liked a review |
 
+**POST body example:**
 
-* Return all members that liked a Review
+```json
+{
+    "content": "The hotel was awesome",
+    "rating": 5,
+    "hotel_id": 6,
+    "member_id": 5
+}
+```
 
-* GET `/reviews/{review_id}/liking_members`
+## Architecture
 
-
-
-
+See [ARCHITECTURE.md](ARCHITECTURE.md) for deployment, application-layer, and data-model diagrams.

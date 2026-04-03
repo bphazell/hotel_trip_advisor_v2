@@ -12,10 +12,17 @@ services:
             - "5432:5432"
         volumes:
             - "${PWD}/data/initdb/:/docker-entrypoint-initdb.d/"
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 5s
+            timeout: 3s
+            retries: 10
+
     pgadmin:
         container_name: pgadmin_container
         image: dpage/pgadmin4:6.4
         restart: always
+        profiles: ["tools"]
         environment:
             PGADMIN_DEFAULT_EMAIL: admin@example.com
             PGADMIN_DEFAULT_PASSWORD: admin123
@@ -26,15 +33,24 @@ services:
         ports:
             - "5433:5433"
         depends_on:
-            - pg
+            pg:
+                condition: service_healthy
+
     hotel_app:
         container_name: hoteltripadvisor
+        build:
+            context: ./flask/hotel_tripadvisor
+            dockerfile: Dockerfile
         image: hoteltripadvisor:latest
         restart: always
         ports:
             - "5002:5002"
         depends_on:
-            - pg
+            pg:
+                condition: service_healthy
+        volumes:
+            - ./flask/hotel_tripadvisor/migrations:/app/migrations
+
 networks:
     default:
         name: nunet
