@@ -1,0 +1,19 @@
+# Virtual environments
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Local env / secrets (Flask, etc.)
+.env
+.env.local
+
+# Packaging
+*.egg-info/
+dist/
+build/
