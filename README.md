@@ -12,31 +12,20 @@ To view the cloud-hosted version, switch to the `azure_cloud_hosted` branch.
 
 ## Quick Start
 
-```bash
-./scripts/launch-local.sh
-```
-
-This single script will:
-
-1. Build the Flask app image
-2. Start Postgres and the Flask API (Gunicorn on port **5002**)
-3. Create the `hotel_trip_advisor` database if it doesn't exist
-4. Generate and apply Alembic migrations
-5. Health-check the API
-
-To also start **PgAdmin** (port 5433):
-
-```bash
-PROFILES="--profile tools" ./scripts/launch-local.sh
-```
-
-### Manual steps (if you prefer)
+The `./scripts/launch-local.sh` helper referenced in earlier revisions is not present in this branch.
+Use the following Compose + migration commands instead:
 
 ```bash
 docker compose up -d --build
 docker exec pg_container psql -U postgres -c 'CREATE DATABASE hotel_trip_advisor;'
 docker exec hoteltripadvisor flask db migrate -m "initial"
 docker exec hoteltripadvisor flask db upgrade
+```
+
+To also start **PgAdmin** (port 5433):
+
+```bash
+docker compose --profile tools up -d
 ```
 
 ### Stopping
