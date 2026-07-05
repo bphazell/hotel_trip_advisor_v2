@@ -147,6 +147,19 @@ h1 {
     margin-bottom: 1rem;
 }
 
+.booking-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.form-group h3 {
+    margin-bottom: 0.75rem;
+}
+
+.member-form {
+    max-width: 520px;
+}
+
 .selectors {
     background: var(--card-02);
     border-radius: 1rem;

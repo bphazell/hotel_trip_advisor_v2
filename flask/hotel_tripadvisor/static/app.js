@@ -32,10 +32,6 @@ function toast(message) {
     toast.timer = window.setTimeout(() => el.classList.remove("show"), 2200);
 }
 
-function activeGuestId() {
-    return Number($("activeGuest").value || state.guests[0]?.guest_id || 0);
-}
-
 function activeMemberId() {
     return Number($("activeMember").value || state.members[0]?.member_id || 0);
 }
@@ -53,6 +49,11 @@ function memberName(id) {
 function hotelName(id) {
     const hotel = state.hotels.find((item) => item.hotel_id === Number(id));
     return hotel ? hotel.name : `Hotel #${id}`;
+}
+
+function guestsWithReservations() {
+    const guestIds = new Set(state.reservations.map((reservation) => reservation.guest_id));
+    return state.guests.filter((guest) => guestIds.has(guest.guest_id));
 }
 
 function setOptions(select, items, valueKey, labelFn, placeholder) {
@@ -110,9 +111,21 @@ function render() {
 }
 
 function renderSelects() {
-    setOptions($("memberGuestSelect"), state.guests, "guest_id", (guest) => `${guest.first_name} ${guest.last_name}`, "Create a guest first");
-    setOptions($("activeGuest"), state.guests, "guest_id", (guest) => `${guest.first_name} ${guest.last_name}`, "No guests yet");
-    setOptions($("activeMember"), state.members, "member_id", (member) => `${member.username} (${guestName(member.guest_id)})`, "No members yet");
+    const bookingGuests = guestsWithReservations();
+    setOptions(
+        $("memberGuestSelect"),
+        bookingGuests,
+        "guest_id",
+        (guest) => `${guest.first_name} ${guest.last_name} (${guest.email})`,
+        "Book a stay first",
+    );
+    setOptions(
+        $("activeMember"),
+        state.members,
+        "member_id",
+        (member) => `${member.username} (${guestName(member.guest_id)})`,
+        "No members yet",
+    );
     setOptions($("reservationHotelSelect"), state.hotels, "hotel_id", (hotel) => hotel.name, "No hotels yet");
     setOptions($("reviewHotelSelect"), state.hotels, "hotel_id", (hotel) => hotel.name, "No hotels yet");
 }
@@ -178,16 +191,16 @@ async function submitJson(form, path, transform = (value) => value) {
 }
 
 function wireForms() {
-    $("guestForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        await submitJson(event.currentTarget, "/guests");
-        toast("Guest created");
-    });
-
     $("memberForm").addEventListener("submit", async (event) => {
         event.preventDefault();
-        await submitJson(event.currentTarget, "/members", (data) => ({ ...data, guest_id: Number(data.guest_id) }));
-        toast("Member created");
+        const guestId = Number(formData(event.currentTarget).guest_id);
+        if (!guestId) return toast("Book a stay first, then link a member account to that guest profile");
+        await submitJson(event.currentTarget, "/members", (data) => ({
+            guest_id: guestId,
+            username: data.username,
+            password: data.password,
+        }));
+        toast("Member account created");
     });
 
     $("hotelForm").addEventListener("submit", async (event) => {
@@ -202,22 +215,37 @@ function wireForms() {
 
     $("reservationForm").addEventListener("submit", async (event) => {
         event.preventDefault();
-        const guestId = activeGuestId();
-        if (!guestId) return toast("Create or select a guest first");
-        await submitJson(event.currentTarget, "/reservations", (data) => ({
-            ...data,
-            guest_id: guestId,
-            hotel_id: Number(data.hotel_id),
-            room_number: Number(data.room_number),
-            number_of_nights: Number(data.number_of_nights),
-        }));
+        const data = formData(event.currentTarget);
+        const guest = await api("/guests", {
+            method: "POST",
+            body: JSON.stringify({
+                first_name: data.first_name,
+                last_name: data.last_name,
+                date_of_birth: data.date_of_birth,
+                email: data.email,
+                phone: data.phone,
+            }),
+        });
+        await api("/reservations", {
+            method: "POST",
+            body: JSON.stringify({
+                guest_id: guest.guest_id,
+                hotel_id: Number(data.hotel_id),
+                room_number: Number(data.room_number),
+                arrival_date: data.arrival_date,
+                departure_date: data.departure_date,
+                number_of_nights: Number(data.number_of_nights),
+            }),
+        });
+        event.currentTarget.reset();
+        await loadAll();
         toast("Reservation booked");
     });
 
     $("reviewForm").addEventListener("submit", async (event) => {
         event.preventDefault();
         const memberId = activeMemberId();
-        if (!memberId) return toast("Create or select a member first");
+        if (!memberId) return toast("Create or select a member account first");
         await submitJson(event.currentTarget, "/reviews", (data) => ({
             ...data,
             member_id: memberId,
@@ -244,7 +272,7 @@ function wireActions() {
 
         if (reviewId) {
             const memberId = activeMemberId();
-            if (!memberId) return toast("Create or select a member first");
+            if (!memberId) return toast("Create or select a member account first");
             if (state.likedReviewIds.has(Number(reviewId))) {
                 await api(`/members/${memberId}/review_likes/${reviewId}`, { method: "DELETE" });
                 toast("Review unliked");
