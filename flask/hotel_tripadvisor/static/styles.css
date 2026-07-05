@@ -186,14 +186,6 @@ h1 {
     margin-bottom: 0.35rem;
 }
 
-.demo-video {
-    width: 100%;
-    max-width: 960px;
-    border: 1px solid var(--border);
-    border-radius: 1rem;
-    background: black;
-}
-
 .toast {
     bottom: 1rem;
     left: 50%;
