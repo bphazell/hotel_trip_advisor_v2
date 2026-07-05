@@ -29,6 +29,9 @@ def create_app(test_config=None):
     db.init_app(app)
     Migrate(app, db)
 
+    from . import ui
+    app.register_blueprint(ui.bp)
+
     from .api import hotels, guests, members, reservations, reviews
     app.register_blueprint(hotels.bp)
     app.register_blueprint(guests.bp)

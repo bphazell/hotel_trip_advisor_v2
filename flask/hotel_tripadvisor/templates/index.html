@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hotel Trip Advisor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header class="hero">
+        <div>
+            <p class="eyebrow">Hotel Trip Advisor</p>
+            <h1>Find stays, book trips, and share reviews.</h1>
+            <p class="lede">A simple no-auth demo interface powered by the Flask API.</p>
+        </div>
+        <button id="refreshBtn" type="button">Refresh data</button>
+    </header>
+
+    <main class="layout">
+        <section class="panel setup-panel">
+            <div class="section-heading">
+                <h2>Guest and member</h2>
+                <p>Create or select who is browsing.</p>
+            </div>
+            <div class="grid two">
+                <form id="guestForm" class="card form-card">
+                    <h3>Create guest</h3>
+                    <label>First name <input name="first_name" required></label>
+                    <label>Last name <input name="last_name" required></label>
+                    <label>Date of birth <input name="date_of_birth" type="date" required></label>
+                    <label>Email <input name="email" type="email" required></label>
+                    <label>Phone <input name="phone"></label>
+                    <button type="submit">Create guest</button>
+                </form>
+
+                <form id="memberForm" class="card form-card">
+                    <h3>Create member</h3>
+                    <label>Guest <select name="guest_id" id="memberGuestSelect" required></select></label>
+                    <label>Username <input name="username" minlength="3" required></label>
+                    <label>Password <input name="password" type="password" minlength="8" required></label>
+                    <button type="submit">Create member</button>
+                </form>
+            </div>
+            <div class="selectors">
+                <label>Active guest <select id="activeGuest"></select></label>
+                <label>Active member <select id="activeMember"></select></label>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Hotels</h2>
+                <p>Browse available hotels or add one.</p>
+            </div>
+            <form id="hotelForm" class="inline-form">
+                <input name="name" placeholder="Hotel name" required>
+                <input name="address" placeholder="Address" required>
+                <input name="star_rating" type="number" min="0" max="5" step="0.1" placeholder="Rating" required>
+                <input name="number_of_rooms" type="number" min="1" placeholder="Rooms" required>
+                <button type="submit">Add hotel</button>
+            </form>
+            <div id="hotels" class="grid cards"></div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Reservations</h2>
+                <p>Book a stay for the active guest.</p>
+            </div>
+            <form id="reservationForm" class="inline-form">
+                <select name="hotel_id" id="reservationHotelSelect" required></select>
+                <input name="room_number" type="number" min="1" placeholder="Room" required>
+                <input name="arrival_date" type="date" required>
+                <input name="departure_date" type="date" required>
+                <input name="number_of_nights" type="number" min="1" placeholder="Nights" required>
+                <button type="submit">Book</button>
+            </form>
+            <div id="reservations" class="grid cards compact"></div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Reviews</h2>
+                <p>Review hotels as the active member.</p>
+            </div>
+            <form id="reviewForm" class="inline-form">
+                <select name="hotel_id" id="reviewHotelSelect" required></select>
+                <input name="rating" type="number" min="1" max="5" placeholder="1-5" required>
+                <input name="content" placeholder="What was the stay like?" maxlength="280" required>
+                <button type="submit">Post review</button>
+            </form>
+            <div id="reviews" class="grid cards"></div>
+        </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
