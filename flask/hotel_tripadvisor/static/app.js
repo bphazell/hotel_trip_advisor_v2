@@ -140,7 +140,7 @@ function renderHotels() {
                 <span class="pill">${hotel.number_of_rooms || 0} rooms</span>
             </div>
         </article>
-    `).join("") || `<p class="muted">No hotels yet. Add one to get started.</p>`;
+    `).join("") || `<p class="muted">No hotels are listed yet.</p>`;
 }
 
 function renderReservations() {
@@ -201,16 +201,6 @@ function wireForms() {
             password: data.password,
         }));
         toast("Member account created");
-    });
-
-    $("hotelForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        await submitJson(event.currentTarget, "/hotels", (data) => ({
-            ...data,
-            star_rating: Number(data.star_rating),
-            number_of_rooms: Number(data.number_of_rooms),
-        }));
-        toast("Hotel added");
     });
 
     $("reservationForm").addEventListener("submit", async (event) => {
