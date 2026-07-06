@@ -103,7 +103,6 @@ class Member(db.Model):
         return {
             'member_id': self.member_id,
             'username': self.username,
-            'password': self.password,
             'guest_id': self.guest_id,
             'join_date': self.join_date,
             'points': self.points

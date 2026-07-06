@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hotel Trip Advisor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header class="hero">
+        <div>
+            <p class="eyebrow">Hotel Trip Advisor</p>
+            <h1>Find stays, book trips, and share reviews.</h1>
+            <p class="lede">Book a stay as a guest. Sign in as a member when you want to write or like reviews.</p>
+        </div>
+        <button id="refreshBtn" type="button">Refresh data</button>
+    </header>
+
+    <main class="layout">
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Hotels</h2>
+                <p>Browse hotels listed by site partners.</p>
+            </div>
+            <div id="hotels" class="grid cards"></div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Book a stay</h2>
+                <p id="bookingHint">Enter guest details as part of the reservation.</p>
+            </div>
+            <form id="reservationForm" class="booking-form">
+                <div class="form-group">
+                    <h3>Stay details</h3>
+                    <div class="inline-form">
+                        <select name="hotel_id" id="reservationHotelSelect" required></select>
+                        <input name="room_number" type="number" min="1" placeholder="Room" required>
+                        <input name="arrival_date" id="arrivalDate" type="date" required>
+                        <input name="departure_date" id="departureDate" type="date" required>
+                        <input name="number_of_nights" id="numberOfNights" type="number" min="1" placeholder="Nights" required readonly>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <h3>Guest details</h3>
+                    <p id="returningGuestNote" class="muted hidden"></p>
+                    <div class="inline-form">
+                        <input name="first_name" placeholder="First name" required>
+                        <input name="last_name" placeholder="Last name" required>
+                        <input name="date_of_birth" type="date" required>
+                        <input name="email" id="guestEmail" type="email" placeholder="Email" required>
+                        <input name="phone" placeholder="Phone">
+                    </div>
+                </div>
+                <button type="submit">Book reservation</button>
+            </form>
+            <div class="section-heading compact-heading">
+                <h3>Your reservations</h3>
+                <p id="reservationsHint">Sign in to see reservations linked to your account.</p>
+            </div>
+            <div id="reservations" class="grid cards compact"></div>
+        </section>
+
+        <section class="panel setup-panel">
+            <div class="section-heading">
+                <h2>Member account</h2>
+                <p id="memberSectionHint">Sign in to post reviews and manage your stays.</p>
+            </div>
+            <div id="signedInMember" class="card session-card hidden"></div>
+            <form id="loginForm" class="card form-card member-form">
+                <h3>Sign in</h3>
+                <label>Username <input name="username" minlength="3" required autocomplete="username"></label>
+                <label>Password <input name="password" type="password" minlength="8" required autocomplete="current-password"></label>
+                <button type="submit">Sign in</button>
+            </form>
+            <form id="memberForm" class="card form-card member-form hidden">
+                <h3>Create member account</h3>
+                <label>Guest profile from your booking
+                    <select name="guest_id" id="memberGuestSelect" required></select>
+                </label>
+                <label>Username <input name="username" minlength="3" required autocomplete="username"></label>
+                <label>Password <input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+                <button type="submit">Create member account</button>
+            </form>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Reviews</h2>
+                <p id="reviewsHint">Community reviews from members.</p>
+            </div>
+            <form id="reviewForm" class="inline-form hidden">
+                <select name="hotel_id" id="reviewHotelSelect" required></select>
+                <input name="rating" type="number" min="1" max="5" placeholder="1-5" required>
+                <input name="content" placeholder="What was the stay like?" maxlength="280" required>
+                <button type="submit">Post review</button>
+            </form>
+            <p id="reviewLoginPrompt" class="muted">Sign in as a member to post or like reviews.</p>
+            <div id="reviews" class="grid cards"></div>
+        </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

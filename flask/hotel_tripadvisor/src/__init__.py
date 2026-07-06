@@ -4,7 +4,12 @@ from flask_migrate import Migrate
 
 
 def create_app(test_config=None):
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(
+        __name__,
+        instance_relative_config=True,
+        template_folder='../templates',
+        static_folder='../static',
+    )
     app.config.from_mapping(
         SECRET_KEY='dev',
         SQLALCHEMY_DATABASE_URI=os.environ.get(
@@ -28,6 +33,9 @@ def create_app(test_config=None):
     from .models import db
     db.init_app(app)
     Migrate(app, db)
+
+    from . import ui
+    app.register_blueprint(ui.bp)
 
     from .api import hotels, guests, members, reservations, reviews
     app.register_blueprint(hotels.bp)

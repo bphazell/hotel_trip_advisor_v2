@@ -1,4 +1,3 @@
-from flask import Blueprint
 from flask import Blueprint, jsonify, abort, request
 from ..models import Member, Review, likes_table, db
 import sqlalchemy
@@ -7,105 +6,124 @@ import secrets
 
 
 def scramble(password: str):
-    """Hash and salt the given password"""
     salt = secrets.token_hex(16)
-    return hashlib.sha512((password + salt).encode('utf-8')).hexdigest()
+    digest = hashlib.sha256((salt + password).encode('utf-8')).hexdigest()
+    return f"{salt}${digest}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    if '$' not in stored:
+        return False
+    salt, digest = stored.split('$', 1)
+    candidate = hashlib.sha256((salt + password).encode('utf-8')).hexdigest()
+    return secrets.compare_digest(candidate, digest)
+
 
 bp = Blueprint('members', __name__, url_prefix='/members')
 
-# Return all members
-@bp.route('', methods=['GET']) # decorator takes path and list of HTTP verbs
-def index():
-    members = Member.query.all() # ORM performs SELECT query
-    result = []
-    for m in members:
-        result.append(m.serialize()) # build list of Tweets as dictionaries
-    return jsonify(result) # return JSON response
 
-# Return specific member
+@bp.route('', methods=['GET'])
+def index():
+    members = Member.query.all()
+    return jsonify([m.serialize() for m in members])
+
+
 @bp.route('/<int:Member_id>', methods=['GET'])
 def show(Member_id: int):
     m = Member.query.get_or_404(Member_id)
     return jsonify(m.serialize())
 
-# Create new member
+
+@bp.route('/login', methods=['POST'])
+def login():
+    data = request.json or {}
+    if 'username' not in data or 'password' not in data:
+        abort(400, description='Username and password are required')
+
+    member = Member.query.filter_by(username=data['username']).first()
+    if member is None or not verify_password(data['password'], member.password):
+        abort(401, description='Invalid username or password')
+
+    return jsonify(member.serialize())
+
+
 @bp.route('', methods=['POST'])
 def create():
-    if 'username' not in request.json or 'password' not in request.json:
-        return abort(400)
-    if len(request.json['username']) < 3 or len(request.json['password']) < 8:
-        return abort(400)
-    m = Member(
-        guest_id = request.json['guest_id'],
-        username = request.json['username'],
-        password = scramble(request.json['password'])
-    )
-    db.session.add(m) # prepare CREATE statement
-    db.session.commit() # execute CREATE statement
-    return jsonify(m.serialize())
+    data = request.json or {}
+    if 'username' not in data or 'password' not in data:
+        abort(400)
+    if len(data['username']) < 3 or len(data['password']) < 8:
+        abort(400, description='Username must be at least 3 characters and password at least 8')
 
-# update username and password
+    if Member.query.filter_by(guest_id=data['guest_id']).first() is not None:
+        abort(409, description='This guest already has a member account')
+
+    member = Member(
+        guest_id=data['guest_id'],
+        username=data['username'],
+        password=scramble(data['password']),
+    )
+    db.session.add(member)
+    db.session.commit()
+    return jsonify(member.serialize())
+
+
 @bp.route('/<int:id>', methods=['PUT', 'PATCH'])
-def update(id:int):
+def update(id: int):
     m = Member.query.get_or_404(id)
     if "username" not in request.json and "password" not in request.json:
-        return abort(404)
+        abort(404)
     if "username" in request.json:
         if len(request.json["username"]) < 3:
-            return abort(404)
-        else:
-            m.username = request.json["username"]
+            abort(404)
+        m.username = request.json["username"]
     if "password" in request.json:
         if len(request.json["password"]) < 8:
-            return abort(404)
-        else:
-            m.password = scramble(request.json["password"])
+            abort(404)
+        m.password = scramble(request.json["password"])
     try:
         db.session.commit()
         return jsonify(m.serialize())
-    except:
+    except Exception:
+        db.session.rollback()
         return jsonify(False)
 
-# Return all reviews member has liked
+
 @bp.route('/<int:id>/liked_reviews', methods=['GET'])
 def liked_tweets(id: int):
     m = Member.query.get_or_404(id)
-    result = []
-    for r in m.liked_reviews:
-        result.append(r.serialize())
-    return jsonify(result)
+    return jsonify([r.serialize() for r in m.liked_reviews])
 
-# Like Review
-@bp.route('/<int:id>/review_likes', methods=['Post'])
+
+@bp.route('/<int:id>/review_likes', methods=['POST'])
 def likes(id: int):
     if "review_id" not in request.json:
-        return abort(404)
+        abort(404)
     review_id = request.json["review_id"]
     Member.query.get_or_404(id)
     Review.query.get_or_404(review_id)
     try:
-        stmt = sqlalchemy.insert(likes_table).values(
-            member_id=id, review_id=review_id)
+        stmt = sqlalchemy.insert(likes_table).values(member_id=id, review_id=review_id)
         db.session.execute(stmt)
         db.session.commit()
         return jsonify(True)
-    except:
+    except Exception:
+        db.session.rollback()
         return jsonify(False)
-    
-# Unlike Review
+
+
 @bp.route('/<int:member_id>/review_likes/<int:review_id>', methods=['DELETE'])
 def unlikes(member_id: int, review_id: int):
     Member.query.get_or_404(member_id)
     Review.query.get_or_404(review_id)
-    
     try:
         stmt = sqlalchemy.delete(likes_table).where(
             likes_table.c.member_id == member_id,
-            likes_table.c.review_id == review_id
-        ) # We delete the tuple (id, review_id) from the likes_table
+            likes_table.c.review_id == review_id,
+        )
         db.session.execute(stmt)
         db.session.commit()
         return jsonify(True)
-    except:
+    except Exception:
+        db.session.rollback()
         return jsonify(False)
-
