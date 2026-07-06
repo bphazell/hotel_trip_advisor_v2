@@ -403,9 +403,10 @@ async function submitJson(form, path, transform = (value) => value) {
 function wireForms() {
     $("loginForm").addEventListener("submit", (event) => {
         event.preventDefault();
-        const button = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+        const form = event.currentTarget;
+        const button = event.submitter || form.querySelector('button[type="submit"]');
         runAction(async () => {
-            const data = formData(event.currentTarget);
+            const data = formData(form);
             const member = await api("/members/login", {
                 method: "POST",
                 body: JSON.stringify({
@@ -415,7 +416,7 @@ function wireForms() {
             });
             state.sessionMember = member;
             sessionStorage.setItem(SESSION_KEY, JSON.stringify(member));
-            event.currentTarget.reset();
+            form.reset();
             await loadAll();
             toast(`Welcome back, ${member.username}`);
         }, null, button);
@@ -423,13 +424,14 @@ function wireForms() {
 
     $("memberForm").addEventListener("submit", (event) => {
         event.preventDefault();
-        const button = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+        const form = event.currentTarget;
+        const button = event.submitter || form.querySelector('button[type="submit"]');
         runAction(async () => {
-            const guestId = Number(formData(event.currentTarget).guest_id);
+            const data = formData(form);
+            const guestId = Number(data.guest_id);
             if (!guestId) {
                 throw new Error("Book a stay first, then link a member account to that guest profile");
             }
-            const data = formData(event.currentTarget);
             const member = await api("/members", {
                 method: "POST",
                 body: JSON.stringify({
@@ -440,16 +442,17 @@ function wireForms() {
             });
             state.sessionMember = member;
             sessionStorage.setItem(SESSION_KEY, JSON.stringify(member));
-            event.currentTarget.reset();
+            form.reset();
             await loadAll();
         }, "Member account created", button);
     });
 
     $("reservationForm").addEventListener("submit", (event) => {
         event.preventDefault();
-        const button = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+        const form = event.currentTarget;
+        const button = event.submitter || form.querySelector('button[type="submit"]');
         runAction(async () => {
-            const data = formData(event.currentTarget);
+            const data = formData(form);
             const nights = calculateNights(data.arrival_date, data.departure_date);
             if (nights === null) {
                 throw new Error("Departure must be after arrival");
@@ -483,7 +486,7 @@ function wireForms() {
                 note.classList.add("hidden");
             }
 
-            event.currentTarget.reset();
+            form.reset();
             $("numberOfNights").value = "";
             await loadAll();
         }, "Reservation booked", button);
@@ -491,11 +494,12 @@ function wireForms() {
 
     $("reviewForm").addEventListener("submit", (event) => {
         event.preventDefault();
-        const button = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+        const form = event.currentTarget;
+        const button = event.submitter || form.querySelector('button[type="submit"]');
         runAction(async () => {
             const memberId = state.sessionMember?.member_id;
             if (!memberId) throw new Error("Sign in to post a review");
-            await submitJson(event.currentTarget, "/reviews", (data) => ({
+            await submitJson(form, "/reviews", (data) => ({
                 ...data,
                 member_id: memberId,
                 hotel_id: Number(data.hotel_id),
