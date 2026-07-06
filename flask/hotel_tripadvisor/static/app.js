@@ -9,15 +9,31 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
 async function api(path, options = {}) {
     const response = await fetch(path, {
         headers: { "Content-Type": "application/json" },
         ...options,
     });
+    const contentType = response.headers.get("content-type") || "";
+    const body = contentType.includes("application/json")
+        ? await response.json()
+        : null;
+
     if (!response.ok) {
-        throw new Error(`${options.method || "GET"} ${path} failed with ${response.status}`);
+        const detail = body?.description || body?.message || response.statusText;
+        throw new Error(`${options.method || "GET"} ${path} failed: ${detail}`);
     }
-    return response.json();
+
+    return body;
 }
 
 function formData(form) {
@@ -30,6 +46,15 @@ function toast(message) {
     el.classList.add("show");
     window.clearTimeout(toast.timer);
     toast.timer = window.setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+async function runAction(action, successMessage) {
+    try {
+        await action();
+        if (successMessage) toast(successMessage);
+    } catch (error) {
+        toast(error.message || "Something went wrong");
+    }
 }
 
 function activeMemberId() {
@@ -133,11 +158,11 @@ function renderSelects() {
 function renderHotels() {
     $("hotels").innerHTML = state.hotels.map((hotel) => `
         <article class="card">
-            <h3>${hotel.name}</h3>
-            <p class="muted">${hotel.address}</p>
+            <h3>${escapeHtml(hotel.name)}</h3>
+            <p class="muted">${escapeHtml(hotel.address)}</p>
             <div class="meta">
-                <span class="pill">${hotel.star_rating || "N/A"} stars</span>
-                <span class="pill">${hotel.number_of_rooms || 0} rooms</span>
+                <span class="pill">${escapeHtml(hotel.star_rating ?? "N/A")} stars</span>
+                <span class="pill">${escapeHtml(hotel.number_of_rooms ?? 0)} rooms</span>
             </div>
         </article>
     `).join("") || `<p class="muted">No hotels are listed yet.</p>`;
@@ -146,14 +171,14 @@ function renderHotels() {
 function renderReservations() {
     $("reservations").innerHTML = state.reservations.map((reservation) => `
         <article class="card">
-            <h3>${hotelName(reservation.hotel_id)}</h3>
-            <p><strong>${guestName(reservation.guest_id)}</strong>, room ${reservation.room_number}</p>
-            <p class="muted">${dateOnly(reservation.arrival_date)} to ${dateOnly(reservation.departure_date)}</p>
+            <h3>${escapeHtml(hotelName(reservation.hotel_id))}</h3>
+            <p><strong>${escapeHtml(guestName(reservation.guest_id))}</strong>, room ${escapeHtml(reservation.room_number)}</p>
+            <p class="muted">${escapeHtml(dateOnly(reservation.arrival_date))} to ${escapeHtml(dateOnly(reservation.departure_date))}</p>
             <div class="meta">
-                <span class="pill">${reservation.number_of_nights} nights</span>
-                <span class="pill">Reservation #${reservation.reservation_id}</span>
+                <span class="pill">${escapeHtml(reservation.number_of_nights)} nights</span>
+                <span class="pill">Reservation #${escapeHtml(reservation.reservation_id)}</span>
             </div>
-            <button class="secondary" type="button" data-cancel-reservation="${reservation.reservation_id}">Cancel</button>
+            <button class="secondary" type="button" data-cancel-reservation="${escapeHtml(reservation.reservation_id)}">Cancel</button>
         </article>
     `).join("") || `<p class="muted">No reservations yet.</p>`;
 }
@@ -163,14 +188,14 @@ function renderReviews() {
         const liked = state.likedReviewIds.has(review.review_id);
         return `
             <article class="card">
-                <h3>${hotelName(review.hotel_id)}</h3>
-                <p>${review.content}</p>
+                <h3>${escapeHtml(hotelName(review.hotel_id))}</h3>
+                <p>${escapeHtml(review.content)}</p>
                 <div class="meta">
-                    <span class="pill">${review.rating}/5 rating</span>
-                    <span class="pill">by ${memberName(review.member_id)}</span>
-                    <span class="pill">Review #${review.review_id}</span>
+                    <span class="pill">${escapeHtml(review.rating)}/5 rating</span>
+                    <span class="pill">by ${escapeHtml(memberName(review.member_id))}</span>
+                    <span class="pill">Review #${escapeHtml(review.review_id)}</span>
                 </div>
-                <button type="button" data-toggle-like="${review.review_id}" class="${liked ? "secondary" : ""}">
+                <button type="button" data-toggle-like="${escapeHtml(review.review_id)}" class="${liked ? "secondary" : ""}">
                     ${liked ? "Unlike" : "Like"}
                 </button>
             </article>
@@ -180,7 +205,13 @@ function renderReviews() {
 
 function dateOnly(value) {
     if (!value) return "";
-    return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const [year, month, day] = String(value).slice(0, 10).split("-");
+    if (!year || !month || !day) return String(value);
+    return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
 }
 
 async function submitJson(form, path, transform = (value) => value) {
@@ -191,90 +222,96 @@ async function submitJson(form, path, transform = (value) => value) {
 }
 
 function wireForms() {
-    $("memberForm").addEventListener("submit", async (event) => {
+    $("memberForm").addEventListener("submit", (event) => {
         event.preventDefault();
-        const guestId = Number(formData(event.currentTarget).guest_id);
-        if (!guestId) return toast("Book a stay first, then link a member account to that guest profile");
-        await submitJson(event.currentTarget, "/members", (data) => ({
-            guest_id: guestId,
-            username: data.username,
-            password: data.password,
-        }));
-        toast("Member account created");
+        runAction(async () => {
+            const guestId = Number(formData(event.currentTarget).guest_id);
+            if (!guestId) throw new Error("Book a stay first, then link a member account to that guest profile");
+            await submitJson(event.currentTarget, "/members", (data) => ({
+                guest_id: guestId,
+                username: data.username,
+                password: data.password,
+            }));
+        }, "Member account created");
     });
 
-    $("reservationForm").addEventListener("submit", async (event) => {
+    $("reservationForm").addEventListener("submit", (event) => {
         event.preventDefault();
-        const data = formData(event.currentTarget);
-        const guest = await api("/guests", {
-            method: "POST",
-            body: JSON.stringify({
-                first_name: data.first_name,
-                last_name: data.last_name,
-                date_of_birth: data.date_of_birth,
-                email: data.email,
-                phone: data.phone,
-            }),
-        });
-        await api("/reservations", {
-            method: "POST",
-            body: JSON.stringify({
-                guest_id: guest.guest_id,
+        runAction(async () => {
+            const data = formData(event.currentTarget);
+            await api("/reservations", {
+                method: "POST",
+                body: JSON.stringify({
+                    first_name: data.first_name,
+                    last_name: data.last_name,
+                    date_of_birth: data.date_of_birth,
+                    email: data.email,
+                    phone: data.phone,
+                    hotel_id: Number(data.hotel_id),
+                    room_number: Number(data.room_number),
+                    arrival_date: data.arrival_date,
+                    departure_date: data.departure_date,
+                    number_of_nights: Number(data.number_of_nights),
+                }),
+            });
+            event.currentTarget.reset();
+            await loadAll();
+        }, "Reservation booked");
+    });
+
+    $("reviewForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        runAction(async () => {
+            const memberId = activeMemberId();
+            if (!memberId) throw new Error("Create or select a member account first");
+            await submitJson(event.currentTarget, "/reviews", (data) => ({
+                ...data,
+                member_id: memberId,
                 hotel_id: Number(data.hotel_id),
-                room_number: Number(data.room_number),
-                arrival_date: data.arrival_date,
-                departure_date: data.departure_date,
-                number_of_nights: Number(data.number_of_nights),
-            }),
-        });
-        event.currentTarget.reset();
-        await loadAll();
-        toast("Reservation booked");
-    });
-
-    $("reviewForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const memberId = activeMemberId();
-        if (!memberId) return toast("Create or select a member account first");
-        await submitJson(event.currentTarget, "/reviews", (data) => ({
-            ...data,
-            member_id: memberId,
-            hotel_id: Number(data.hotel_id),
-            rating: Number(data.rating),
-        }));
-        toast("Review posted");
+                rating: Number(data.rating),
+            }));
+        }, "Review posted");
     });
 }
 
 function wireActions() {
-    $("refreshBtn").addEventListener("click", () => loadAll().then(() => toast("Data refreshed")));
-    $("activeMember").addEventListener("change", () => loadLikedReviews().then(renderReviews));
+    $("refreshBtn").addEventListener("click", () => runAction(() => loadAll(), "Data refreshed"));
+    $("activeMember").addEventListener("change", () => runAction(async () => {
+        await loadLikedReviews();
+        renderReviews();
+    }));
 
-    document.body.addEventListener("click", async (event) => {
+    document.body.addEventListener("click", (event) => {
         const reservationId = event.target.dataset.cancelReservation;
         const reviewId = event.target.dataset.toggleLike;
 
         if (reservationId) {
-            await api(`/reservations/${reservationId}`, { method: "DELETE" });
-            await loadAll();
-            toast("Reservation cancelled");
+            runAction(async () => {
+                const result = await api(`/reservations/${reservationId}`, { method: "DELETE" });
+                if (result === false) throw new Error("Could not cancel reservation");
+                await loadAll();
+            }, "Reservation cancelled");
         }
 
         if (reviewId) {
-            const memberId = activeMemberId();
-            if (!memberId) return toast("Create or select a member account first");
-            if (state.likedReviewIds.has(Number(reviewId))) {
-                await api(`/members/${memberId}/review_likes/${reviewId}`, { method: "DELETE" });
-                toast("Review unliked");
-            } else {
-                await api(`/members/${memberId}/review_likes`, {
-                    method: "POST",
-                    body: JSON.stringify({ review_id: Number(reviewId) }),
-                });
-                toast("Review liked");
-            }
-            await loadLikedReviews();
-            renderReviews();
+            runAction(async () => {
+                const memberId = activeMemberId();
+                if (!memberId) throw new Error("Create or select a member account first");
+
+                if (state.likedReviewIds.has(Number(reviewId))) {
+                    const result = await api(`/members/${memberId}/review_likes/${reviewId}`, { method: "DELETE" });
+                    if (result === false) throw new Error("Could not unlike review");
+                } else {
+                    const result = await api(`/members/${memberId}/review_likes`, {
+                        method: "POST",
+                        body: JSON.stringify({ review_id: Number(reviewId) }),
+                    });
+                    if (result === false) throw new Error("Could not like review");
+                }
+
+                await loadLikedReviews();
+                renderReviews();
+            }, state.likedReviewIds.has(Number(reviewId)) ? "Review unliked" : "Review liked");
         }
     });
 }
