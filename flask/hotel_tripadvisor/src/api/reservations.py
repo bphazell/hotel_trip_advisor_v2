@@ -1,3 +1,5 @@
+from datetime import date
+
 from flask import Blueprint, jsonify, abort, request
 from ..models import Reservation, Hotel, Guest, Member, db
 
@@ -5,6 +7,32 @@ from ..models import Reservation, Hotel, Guest, Member, db
 bp = Blueprint('reservations', __name__, url_prefix='/reservations')
 
 GUEST_FIELDS = ('first_name', 'last_name', 'date_of_birth', 'email')
+
+
+def _parse_date(value):
+    return date.fromisoformat(str(value)[:10])
+
+
+def _validate_reservation(data, hotel):
+    arrival = _parse_date(data['arrival_date'])
+    departure = _parse_date(data['departure_date'])
+    today = date.today()
+
+    if arrival < today:
+        abort(400, description='Arrival date must be today or later')
+    if departure <= arrival:
+        abort(400, description='Departure date must be after arrival date')
+
+    expected_nights = (departure - arrival).days
+    submitted_nights = int(data['number_of_nights'])
+    if submitted_nights != expected_nights:
+        abort(400, description=f'Number of nights must be {expected_nights} for the selected dates')
+
+    room_number = int(data['room_number'])
+    if room_number < 1:
+        abort(400, description='Room number must be at least 1')
+    if hotel.number_of_rooms and room_number > hotel.number_of_rooms:
+        abort(400, description=f'Room number must be between 1 and {hotel.number_of_rooms}')
 
 
 def _resolve_guest_id(data):
@@ -16,6 +44,10 @@ def _resolve_guest_id(data):
     missing = [field for field in GUEST_FIELDS if field not in data]
     if missing:
         abort(400, description=f'Missing guest fields: {", ".join(missing)}')
+
+    existing = Guest.query.filter_by(email=data['email']).first()
+    if existing is not None:
+        return existing.guest_id
 
     guest = Guest(
         first_name=data['first_name'],
@@ -29,41 +61,38 @@ def _resolve_guest_id(data):
     return guest.guest_id
 
 
-# Return all reservations
 @bp.route('', methods=['GET'])
 def index():
     reservation = Reservation.query.all()
-    result = []
-    for r in reservation:
-        result.append(r.serialize())
-    return jsonify(result)
+    return jsonify([r.serialize() for r in reservation])
 
 
-# Return specific reservation
 @bp.route('/<int:id>', methods=['GET'])
 def show(id: int):
     r = Reservation.query.get_or_404(id)
     return jsonify(r.serialize())
 
 
-# Create a new reservation
 @bp.route('', methods=['POST'])
 def create():
     data = request.json or {}
     if 'hotel_id' not in data:
-        return abort(400)
+        abort(400)
 
-    Hotel.query.get_or_404(data['hotel_id'])
+    hotel = Hotel.query.get_or_404(data['hotel_id'])
+    _validate_reservation(data, hotel)
 
     try:
-        guest_id = _resolve_guest_id(data)
-        m = Member.query.filter_by(guest_id=guest_id).first()
-        if m is not None:
-            existing_points = int(m.points)
-            new_points = int(data['number_of_nights']) * 10
-            m.points = existing_points + new_points
+        guest_reused = False
+        if 'guest_id' not in data and 'email' in data:
+            guest_reused = Guest.query.filter_by(email=data['email']).first() is not None
 
-        r = Reservation(
+        guest_id = _resolve_guest_id(data)
+        member = Member.query.filter_by(guest_id=guest_id).first()
+        if member is not None:
+            member.points = int(member.points) + int(data['number_of_nights']) * 10
+
+        reservation = Reservation(
             room_number=data['room_number'],
             hotel_id=data['hotel_id'],
             arrival_date=data['arrival_date'],
@@ -71,23 +100,22 @@ def create():
             number_of_nights=data['number_of_nights'],
             guest_id=guest_id,
         )
-        db.session.add(r)
+        db.session.add(reservation)
         db.session.commit()
-        return jsonify(r.serialize())
+        payload = reservation.serialize()
+        payload['guest_reused'] = guest_reused
+        return jsonify(payload)
     except Exception:
         db.session.rollback()
         abort(500)
 
 
-# Delete a reservation
 @bp.route('/<int:id>', methods=['DELETE'])
 def delete(id: int):
     r = Reservation.query.get_or_404(id)
-    m = Member.query.filter_by(guest_id=r.guest_id).first()
-    if m is not None:
-        existing_points = int(m.points)
-        new_points = int(r.number_of_nights) * 10
-        m.points = existing_points - new_points
+    member = Member.query.filter_by(guest_id=r.guest_id).first()
+    if member is not None:
+        member.points = int(member.points) - int(r.number_of_nights) * 10
     try:
         db.session.delete(r)
         db.session.commit()
